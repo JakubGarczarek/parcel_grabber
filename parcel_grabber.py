@@ -18,6 +18,9 @@ class ParcelGrabber():
             for row in csv_cont:
                 lokalizacja = row[0]
                 self.lok_teryts[lokalizacja]=[]
+        # ponowne otwarcie tego samego pliku 
+        # żeby od początku przejechać po wierszach csv
+        # tym razem w celu uzupełnienia pustych list w słowniku terytami
         with open(self.csv) as f:
             csv_cont = csv.reader(f, delimiter=',')
             for row in csv_cont:
