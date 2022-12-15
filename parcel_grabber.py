@@ -1,13 +1,35 @@
-import requests, re, json
+import requests, re, json, csv
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine
 import config
 class ParcelGrabber():
 
-    def __init__(self, csv):
-        self.csv = csv
+    def __init__(self, csv_file):
+
+        self.csv = csv_file
+        # ten słownik będzie miał taki układ:
+        # {LOKALIZACJA,[teryt1, teryt2, ...]}
+        self.lok_teryts = {}
+        with open(self.csv) as f:
+            csv_cont = csv.reader(f, delimiter=',')
+            # dodanie do słownika wszystkich lokalizacji
+            # jako klucze i pustych na razie list jako ich wartości
+            # docelowo w tych listach będzie zestaw terytów
+            for row in csv_cont:
+                lokalizacja = row[0]
+                self.lok_teryts[lokalizacja]=[]
+        with open(self.csv) as f:
+            csv_cont = csv.reader(f, delimiter=',')
+            for row in csv_cont:
+                lokalizacja = row[0]
+                teryt = row[1]
+                print(lokalizacja, teryt)
+                self.lok_teryts[lokalizacja].append(teryt)
+        print(self.lok_teryts)
+
+      
         # sama nazwa bez roszerzenia
-        self.fname = csv[0:-4]
+        self.fname = csv_file[0:-4]
         # automatyczne podłączenie bazy z configa
         self.postgis = create_engine(f"postgresql://{config.user}:{config.password}@{config.ip}:{config.port}/{config.db}")
         
@@ -259,8 +281,8 @@ class ParcelGrabber():
                         # zapisz w nowej lini teryt którego geometrii serwer nie zwrócił
                             f.write(f" adres {query} zwrócił kod {response.status_code}")
 
-csv = 'lubien.csv'
-pg = ParcelGrabber(csv)
-pg.geom_from_uldk()
-pg.bbox()
-pg.wfs_from_bbox()
+
+pg = ParcelGrabber('./robocze/all.csv')
+# pg.geom_from_uldk()
+# pg.bbox()
+# pg.wfs_from_bbox()
