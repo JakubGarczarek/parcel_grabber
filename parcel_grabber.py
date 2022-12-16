@@ -1,17 +1,20 @@
-import requests, re, json, csv
+import requests, re, json, csv, datetime
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine
 import config
+
 class ParcelGrabber():
 
-    def __init__(self, csv_file):
+    def __init__(self, plik_csv):
 
-        self.csv = csv_file
+        self.plik_csv = plik_csv
         # ten słownik będzie miał taki układ:
         # {LOKALIZACJA,[teryt1, teryt2, ...]}
         self.lok_teryts = {}
-        with open(self.csv) as f:
+        with open(self.plik_csv) as f:
             csv_cont = csv.reader(f, delimiter=',')
+            # olanie nagłówka
+            next(f)
             # dodanie do słownika wszystkich lokalizacji
             # jako klucze i pustych na razie list jako ich wartości
             # docelowo w tych listach będzie zestaw terytów
@@ -21,39 +24,40 @@ class ParcelGrabber():
         # ponowne otwarcie tego samego pliku 
         # żeby od początku przejechać po wierszach csv
         # tym razem w celu uzupełnienia pustych list w słowniku terytami
-        with open(self.csv) as f:
+        with open(self.plik_csv) as f:
+            next(f)
             csv_cont = csv.reader(f, delimiter=',')
             for row in csv_cont:
                 lokalizacja = row[0]
                 teryt = row[1]
-                print(lokalizacja, teryt)
-                self.lok_teryts[lokalizacja].append(teryt)
-        print(self.lok_teryts)
-
-      
+                self.lok_teryts[lokalizacja].append(teryt)            
         # sama nazwa bez roszerzenia
-        self.fname = csv_file[0:-4]
+        self.nazwa_csv = plik_csv[0:-4]
         # automatyczne podłączenie bazy z configa
         self.postgis = create_engine(f"postgresql://{config.user}:{config.password}@{config.ip}:{config.port}/{config.db}")
-        
+        print(self.lok_teryts)
 
     ###################################################
     # CSV (lista TERYTÓW) => JSON {"TERYT":"GEOM_WKT"}
     ###################################################
-
     def geom_from_uldk(self):
         # narazie pusty słownik {"TERYT":"GEOM_WKT"}
         teryt_geom = {}
-        # otwieramy csv z terytami
-        with open(self.csv) as csv:
-            for line in csv:
-                # pobranie pojedynczego terytu z csv
-                teryt = line.strip()
-                # zapytanie do usługi uldk z podaniem terytu
+        # i jeszcze jeden, ale z lokalizacją {"LOKALIZACJA":{"TERYT":"GEOM_WKT"}}
+        lok_teryt_geom = {}
+        for lokalizacja in self.lok_teryts.keys():
+            for teryt in self.lok_teryts[lokalizacja]:
+                print(teryt)
+        # iteracja po wszystkich lokalizacjach słownika
+        for lokalizacja in self.lok_teryts.keys():
+            # iteracja po wszystkich terytach w danej lokalizacji
+            for teryt in self.lok_teryts[lokalizacja]:
+                # zapytanie do usługi uldk z podaniem iterowanego terytu
                 querry= f"https://uldk.gugik.gov.pl/?request=GetParcelById&id={teryt}&result=geom_wkt"
+                print(querry)
                 response = requests.get(querry)
-                # gdy serwer odpowie poprawnie i coś zwróci w content
-                if response.status_code == 200:
+                # gdy serwer odpowie poprawnie i w contencie zwróci jakieś poligony
+                if response.status_code == 200 and re.search('POLYGON\(\((.+?)\)\)', (str(response.content))): 
                     # serwer zwraca wkt z białymi znakami
                     wkt_uncleaned = str(response.content)
                     # czyścimy 
@@ -63,79 +67,90 @@ class ParcelGrabber():
                     geom = f"POLYGON(({only_xy}))"
                     # dodanie do słownika pojedynczej pary {"TERYT":"GEOM_WKT"}
                     teryt_geom[teryt] = geom
+                    print('ok ')
                 # gdy brak odpowiedzi z serwera lub content pusty
                 else:
-                    # utwórz plik o nazwie jak csv ale z sufixem "braki" (nadpisanie)
-                   with open(f"{self.fname}_brak_ULDK.csv", "w",encoding = 'utf-8') as f:
-                    # zapisz w nowej lini teryt którego geometrii serwer nie zwrócił
-                        f.write(teryt+"\n")  
-                    
-        # zapis słownika {"TERYT":"GEOM_WKT"} do pliku JSON (nadpisanie)
-        with open (f"{self.fname}.json", "w", encoding='utf-8') as f:
-            json.dump(teryt_geom, f)
-        # dodatkowo zwrotka finalnego wyniku (nie tylko json)
-        return teryt_geom
-    
-
-
+                    # dopisz do pliku z błędami lokalizację i teryt
+                    # którego geometri nie udało się pobrać
+                   print('lipa ')
+                   with open(f"ULDK_braki.csv", "a",encoding = 'utf-8') as f:
+                        linia_bledu = csv.writer(f, delimiter=',')
+                        linia_bledu.writerow([lokalizacja,teryt,datetime.datetime.now()])    
+                
+            # zapis do słownika {"TERYT":"GEOM_WKT"} dla całej iterowanej lokalizacji
+            lok_teryt_geom[lokalizacja]=teryt_geom
+            print(lok_teryt_geom) 
+            # zapis tego słownika do json
+            with open ('lok_teryt_geom.json', 'w', encoding='utf-8') as f:
+                json.dump(lok_teryt_geom, f)
+            # usunięcie terytu z przyporządkowanymi geometriami
+            # pod kolejną iterację lokalizacji
+            teryt_geom = {}
+        
     ####################################
     # JSON {"TERYT":"GEOM_WKT"} => BBOX
     ####################################
 
     def bbox(self):
-        #utworzenie pustej listy porównawczej, 
+        # utworzenie pustej listy porównawczej, 
         # do której później wpadać będą pary kompletów (listy) współrzędnych
         compare_list = []
-        #otworzenie jsona stworzonego przez uldk.json()
-        with open(f"{self.csv[0:-4]}.json") as f:
+        # pusty narazie słownik
+        # potem dostanie lokalizację z bboxem
+        lokalizacja_bbox = {}
+        # otworzenie jsona {"LOKALIZACJA":{"TERYT":"GEOM_WKT"}}
+        with open('lok_teryt_geom.json') as f:
             j = json.load(f)
             # iteracja przez wszystkie pary {"TERYT":"GEOM_WKT"} z jsona
-            for geom in j.values():
-                # wyodrębnienie samych liczb (współrzędnych) z geom (do listy)
-                xy_list = re.findall("\d+\.\d+",geom)
-                # lista samych x-ów (co 2 element od 0)
-                x_list = xy_list[0::2]
-                # lista samych y-ków (co 2 element od 1)
-                y_list = xy_list[1::2]
-                # dodanie ich extremów do utworzonej wcześniej listy porównawczej
-                compare_list.append( [min(x_list), min(y_list), max(x_list), max(y_list)] )
-                # Jeżeli w tej liście znajduje się aktualnie
-                # komplet (para) list współrzędnych do porównania
-                # tworzymy z nich jedną listę z ekstremami 
-                if len(compare_list) == 2:
-                    # pobranie kompletów ekstremów do zmiennych a i b
-                    # a oraz b to listy o strukturze [min x, min y, max x, max y]
-                    a = compare_list[0]
-                    b = compare_list[1]
-                    # najmniejszy x min (pomiędzy a i b)
-                    ab_min_x = min(a[0], b[0])
-                    # najmniejszy y min (pomiędzy a i b)
-                    ab_min_y = min(a[1], b[1])
-                    # największy x max (pomiędzy a i b)
-                    ab_max_x = max(a[2], b[2])
-                    # największy y max (pomiędzy a i b)
-                    ab_max_y = max(a[3], b[3])
-                    # zastąpienie a i b w compare_list 
-                    # na jedną listę zawierającą ekstrema 
-                    # z porównania a i b
-                    compare_list = [[ab_min_x, ab_min_y, ab_max_x, ab_max_y]]
-                    
-                # jeśli compare_list zawiera tylko 1 element pomijamy redukcję a i b 
-                # (bo jest tylko nowe a) i wracamy do początku pętli w celu dodania 
-                # kolejnego b    
-        # finalnie compare_list zawiera jedną zwycięzką listę [0]
-        # z której wyciągniemy wsp bboxa
-        x_min = compare_list[0][0]
-        y_min = compare_list[0][1]
-        x_max = compare_list[0][2]
-        y_max = compare_list[0][3]
-        # usługa wfs potrzebuje stringa z odwróconymi wspołrzędnymi
-        # oddzielonymi przecinkami
-        bbox = f"{y_min},{x_min},{y_max},{x_max}"
-        # zapis bboxa do pliku
-        with open (f"{self.fname}_bbox.csv", 'w', encoding='utf-8') as f:
-            f.write(bbox)
-        return bbox
+            for lokalizacja, teryts_geoms in j.items():
+                for geom in teryts_geoms.values():          
+                    # wyodrębnienie samych liczb (współrzędnych) z geom (do listy)
+                    xy_list = re.findall("\d+\.\d+",geom)
+                    # lista samych x-ów (co 2 element od 0)
+                    x_list = xy_list[0::2]
+                    # lista samych y-ków (co 2 element od 1)
+                    y_list = xy_list[1::2]
+                    # dodanie ich extremów do utworzonej wcześniej listy porównawczej
+                    compare_list.append( [min(x_list), min(y_list), max(x_list), max(y_list)] )
+                    # Jeżeli w tej liście znajduje się aktualnie
+                    # komplet (para) list współrzędnych do porównania
+                    # tworzymy z nich jedną listę z ekstremami 
+                    if len(compare_list) == 2:
+                        # pobranie kompletów ekstremów do zmiennych a i b
+                        # a oraz b to listy o strukturze [min x, min y, max x, max y]
+                        a = compare_list[0]
+                        b = compare_list[1]
+                        # najmniejszy x min (pomiędzy a i b)
+                        ab_min_x = min(a[0], b[0])
+                        # najmniejszy y min (pomiędzy a i b)
+                        ab_min_y = min(a[1], b[1])
+                        # największy x max (pomiędzy a i b)
+                        ab_max_x = max(a[2], b[2])
+                        # największy y max (pomiędzy a i b)
+                        ab_max_y = max(a[3], b[3])
+                        # zastąpienie a i b w compare_list 
+                        # na jedną listę zawierającą ekstrema 
+                        # z porównania a i b
+                        compare_list = [[ab_min_x, ab_min_y, ab_max_x, ab_max_y]]
+                        
+                    # jeśli compare_list zawiera tylko 1 element pomijamy redukcję a i b 
+                    # (bo jest tylko nowe a) i wracamy do początku pętli w celu dodania 
+                    # kolejnego b    
+                # finalnie compare_list zawiera jedną zwycięzką listę [0]
+                # z której wyciągniemy wsp bboxa
+                x_min = compare_list[0][0]
+                y_min = compare_list[0][1]
+                x_max = compare_list[0][2]
+                y_max = compare_list[0][3]
+                # usługa wfs potrzebuje stringa z odwróconymi wspołrzędnymi
+                # oddzielonymi przecinkami
+                bbox = f"{y_min},{x_min},{y_max},{x_max}"
+                # słownik z bboxem przypisanym do lokalizacji
+                lokalizacja_bbox[lokalizacja]=bbox
+                # i jego zapis w jsonie
+        with open ('lok_bbox.json', 'w', encoding='utf-8') as f:
+            json.dump(lokalizacja_bbox,f)
+            
 
   
     ###########################################
@@ -285,7 +300,7 @@ class ParcelGrabber():
                             f.write(f" adres {query} zwrócił kod {response.status_code}")
 
 
-pg = ParcelGrabber('./robocze/all.csv')
-# pg.geom_from_uldk()
-# pg.bbox()
+pg = ParcelGrabber('./robocze/wycinek_testowy.csv')
+pg.geom_from_uldk()
+pg.bbox()
 # pg.wfs_from_bbox()
