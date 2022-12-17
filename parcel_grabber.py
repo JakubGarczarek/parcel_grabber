@@ -73,7 +73,7 @@ class ParcelGrabber():
                     # dopisz do pliku z błędami lokalizację i teryt
                     # którego geometri nie udało się pobrać
                    print('lipa ')
-                   with open(f"ULDK_braki.csv", "a",encoding = 'utf-8') as f:
+                   with open(f"uldk_braki.csv", "a",encoding = 'utf-8') as f:
                         linia_bledu = csv.writer(f, delimiter=',')
                         linia_bledu.writerow([lokalizacja,teryt,datetime.datetime.now()])    
                 
@@ -81,8 +81,8 @@ class ParcelGrabber():
             lok_teryt_geom[lokalizacja]=teryt_geom
             print(lok_teryt_geom) 
             # zapis tego słownika do json
-            with open ('lok_teryt_geom.json', 'w', encoding='utf-8') as f:
-                json.dump(lok_teryt_geom, f)
+            with open ('uldk.json', 'w', encoding='utf-8') as f:
+                json.dump(lok_teryt_geom, f, indent=1)
             # usunięcie terytu z przyporządkowanymi geometriami
             # pod kolejną iterację lokalizacji
             teryt_geom = {}
@@ -99,7 +99,7 @@ class ParcelGrabber():
         # potem dostanie lokalizację z bboxem
         lokalizacja_bbox = {}
         # otworzenie jsona {"LOKALIZACJA":{"TERYT":"GEOM_WKT"}}
-        with open('lok_teryt_geom.json') as f:
+        with open('uldk.json') as f:
             j = json.load(f)
             # iteracja przez wszystkie pary {"TERYT":"GEOM_WKT"} z jsona
             for lokalizacja, teryts_geoms in j.items():
@@ -148,8 +148,8 @@ class ParcelGrabber():
                 # słownik z bboxem przypisanym do lokalizacji
                 lokalizacja_bbox[lokalizacja]=bbox
                 # i jego zapis w jsonie
-        with open ('lok_bbox.json', 'w', encoding='utf-8') as f:
-            json.dump(lokalizacja_bbox,f)
+        with open ('bbox.json', 'w', encoding='utf-8') as f:
+            json.dump(lokalizacja_bbox,f, indent=1)
             
 
   
