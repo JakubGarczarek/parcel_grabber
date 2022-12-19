@@ -24,7 +24,6 @@ class ParcelGrabber():
         # żeby od początku przejechać po wierszach csv
         # tym razem w celu uzupełnienia pustych list w słowniku terytami
         with open(self.plik_csv) as f:
-            next(f)
             csv_cont = csv.reader(f, delimiter=',')
             for row in csv_cont:
                 lokalizacja = row[0]
@@ -59,9 +58,9 @@ class ParcelGrabber():
             # iteracja po wszystkich terytach w danej lokalizacji
             for teryt in self.lok_teryts[lokalizacja]:
                 # zapytanie do usługi uldk z podaniem iterowanego terytu
-                querry= f"https://uldk.gugik.gov.pl/?request=GetParcelById&id={teryt}&result=geom_wkt"
-                print(querry)
-                response = requests.get(querry)
+                query= f"https://uldk.gugik.gov.pl/?request=GetParcelById&id={teryt}&result=geom_wkt"
+                print(query)
+                response = requests.get(query)
                 # gdy serwer odpowie poprawnie i w contencie zwróci jakieś poligony
                 if response.status_code == 200 and re.search('POLYGON\(\((.+?)\)\)', (str(response.content))): 
                     # serwer zwraca wkt z białymi znakami
@@ -219,6 +218,21 @@ class ParcelGrabber():
                 typename = wfs_params['typename']
                 # w jakim układzie powiat wystawia usługę
                 srsname = wfs_params['srsname']
+                # pobranie wersji wfs:
+                query_cap = f"{url}?SERVICE=WFS&REQUEST=GetCapabilities"
+                print(query_cap)
+                response = requests.get(query_cap)
+                if response.status_code == 200:
+                    # zapis xmla z capabilities
+                    capabilities = response.content
+                    print('ok')
+                    print(capabilities)
+                    cap_soup = BeautifulSoup(capabilities,'xml')
+                    wfs_version = cap_soup.find('ows:ServiceTypeVersion').text
+                    print(wfs_version)
+                else:
+                    # zapis zapytania url, czasu i bboxa które zwróciły błąd
+                    print('lipa')
                 # pobranie bboxa z ULDK w 1992
                 with open ('bbox_92.json') as f:
                     bbox = json.load(f)[lokalizacja]
@@ -271,11 +285,13 @@ class ParcelGrabber():
                 #             coords.append(coord)
                 #         bbox=f"{coords[1]},{coords[0]},{coords[3]},{coords[4]}"
                     # zapytanie z bboxem w układzie lokalnym
-                    query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version=1.1.0&TYPENAMES={typename}&bbox={bbox}&SRSNAME={srsname}"
+                    query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version={wfs_version}&TYPENAMES={typename}&bbox={bbox}&SRSNAME={srsname}"
+                    print(query)
                     response = requests.get(query)
                     if response.status_code == 200:       
                         with open(f"{lokalizacja}.gml", 'wb') as f:
                             f.write(response.content)
+                        print(response.content)
                         # otwarcie zapisanego przed chwilą gmla
                         with open(f"{lokalizacja}.gml") as f:
                             # gml jest w ukł lokalnym i ma odwórcone osie
@@ -296,6 +312,7 @@ class ParcelGrabber():
                                 # Transformacja afiniczna ST_Affine (da się tylko z WKT)
                                 # WKB (powst. z afinicznej) na WKT (ST_AsText)
                                 sql =f"SELECT ST_AsText(ST_Affine(ST_AsText(ST_GeomFromGML('{gml_Polygon}')),0, 1, 1, 0, 0, 0))"
+                                print(sql)
                                 gml_geom = self.postgis.execute(sql)
                                 for g in gml_geom:
                                     # zapis geometrii lokalnych  
@@ -303,31 +320,52 @@ class ParcelGrabber():
                                     # (trzeba je jeszcze przetransformować do 1992)
                                     with open(f"{lokalizacja}_WFS.csv", 'a') as f:
                                         f.write(f"{g[0]}\n")
+                                print('ok')
                     else:
                         # zapis zapytania url, czasu i bboxa które zwróciły błąd
                         with open(f"wfs_braki.csv", "a",encoding = 'utf-8') as f:
                             linia_bledu = csv.writer(f, delimiter=',')
                             linia_bledu.writerow([query,datetime.datetime.now(),bbox,])
+                        print('lipa')
             
                 # jeżeli nie trzeba było robić transformacji
                 # (dla powiatów z układem 1992)
                 # zapis gml bez odwrócenia osi i ponownej transformacji z lokalnego do 1992
                 else:
-                    query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version=1.1.0&TYPENAMES={typename}&bbox={bbox}&SRSNAME={srsname}"
+                    query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version={wfs_version}&TYPENAMES={typename}&bbox={bbox}&SRSNAME={srsname}"
+                    print(query)
                     response = requests.get(query)
                     if response.status_code == 200:
                         # zapis gmla - jeśli jest w 1992 to ok
                         with open(f"{lokalizacja}.gml", 'wb') as f:
                             f.write(response.content)
+                        print('ok')
                     else:
                         # zapis zapytania url, czasu i bboxa które zwróciły błąd
                         with open(f"wfs_braki.csv", "a",encoding = 'utf-8') as f:
                             linia_bledu = csv.writer(f, delimiter=',')
                             linia_bledu.writerow([query,datetime.datetime.now(),bbox,])
+        
+    ##############################################################################
+    # wyciągnięcie z jsona geometrii do csv (gdy trzeba wizualizować np. w QGIS) 
+    ###############################################################################
+
+    def uldk_json_to_csv_geom(self):
+        with open('uldk.json') as f:
+            uldk_json = json.load(f)
+            for lokalizacja, ter_geoms in uldk_json.items():
+                teryt_geom_list=[]
+                with open(f"uldk_{lokalizacja}_teryt_geom.csv", 'w') as f:
+                    teryt_geom_csv = csv.writer(f)
+                    for teryt, geom in ter_geoms.items():
+                        teryt_geom_csv.writerow([teryt, geom])
+    
+    
 
 
-pg = ParcelGrabber('./robocze/wycinek_testowy.csv')
-pg.geom_from_uldk()
-pg.bbox_92()
-pg.wfs_params()
+pg = ParcelGrabber('robocze/radko.csv')
+# pg.geom_from_uldk()
+# pg.bbox_92()
+# pg.wfs_params()
 pg.wfs_from_bbox()
+# pg.uldk_json_to_csv_geom()
