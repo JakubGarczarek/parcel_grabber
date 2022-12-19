@@ -1,7 +1,6 @@
 import requests, re, json, csv, datetime
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine
-import config
 
 class ParcelGrabber():
 
@@ -33,8 +32,15 @@ class ParcelGrabber():
                 self.lok_teryts[lokalizacja].append(teryt)            
         # sama nazwa bez roszerzenia
         self.nazwa_csv = plik_csv[0:-4]
+        with open('config/connection.json') as f:
+            connection_json = json.load(f)
+            user = connection_json['user']
+            password = connection_json['password']
+            ip = connection_json['ip']
+            port = connection_json['port']
+            db = connection_json['db']
         # automatyczne podłączenie bazy z configa
-        self.postgis = create_engine(f"postgresql://{config.user}:{config.password}@{config.ip}:{config.port}/{config.db}")
+        self.postgis = create_engine(f"postgresql://{user}:{password}@{ip}:{port}/{db}")
         print(self.lok_teryts)
 
     ###################################################

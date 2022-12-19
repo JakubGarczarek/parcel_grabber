@@ -1,5 +1,0 @@
-user = 'Janusz'
-password = '123456'
-ip = '123.123.123.10'
-port ='12345'
-db ='MegaBaza'

@@ -1,0 +1,7 @@
+{
+"user": "wpisz nazwę użytkownika",
+"password" : "wpisz hasło",
+"ip" : "wpisz adres ip",
+"port" : "wpisz nr portu",
+"db" : "wpisz nazwę bazy"
+}
