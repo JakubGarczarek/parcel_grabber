@@ -173,7 +173,7 @@ class ParcelGrabber():
                     best_teryt = max(licz_teryty, key=licz_teryty.count)
                     # pobranie danych z jsona przygotowanego
                     # jednorazowo przez json_exporter.py
-                    with open ('./wfs_param/wfs_param.json') as f:
+                    with open ('./config/wfs_param.json') as f:
                         wfs_param_json = json.load(f)
                         wfs_url = ''
                         wfs_typename = ''
