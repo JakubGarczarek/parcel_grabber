@@ -12,8 +12,6 @@ class ParcelGrabber():
         self.lok_teryts = {}
         with open(self.plik_csv) as f:
             csv_cont = csv.reader(f, delimiter=',')
-            # olanie nagłówka
-            next(f)
             # dodanie do słownika wszystkich lokalizacji
             # jako klucze i pustych na razie list jako ich wartości
             # docelowo w tych listach będzie zestaw terytów
@@ -153,7 +151,7 @@ class ParcelGrabber():
                 # słownik z bboxem przypisanym do lokalizacji
                 lokalizacja_bbox[lokalizacja]=bbox
                 # i jego zapis w jsonie
-        with open ('bbox_92.json', 'w', encoding='utf-8') as f:
+        with open ('bbox_92.json', 'a', encoding='utf-8') as f:
             json.dump(lokalizacja_bbox,f, indent=1)
         
 
@@ -301,6 +299,26 @@ class ParcelGrabber():
                             soup = BeautifulSoup(f,'xml')
                             # wyciągamy z gmla zawartość tagów <gml:Polygon>
                             gml_Polygons = soup.findAll('gml:Polygon')
+                            # pomimo iż usługa w układzie lokalnym
+                            # zapytanie może być wymagane nadal w 1992
+                            # wtedy zwrócony gml będzie pusty, więc poniżej
+                            # sprawdzenie czy pusty i zapytanie w 1992
+                            if not gml_Polygons:
+                                with open ('bbox_92.json') as f:
+                                    bbox_92 = json.load(f)[lokalizacja]
+                                query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version={wfs_version}&TYPENAMES={typename}&bbox={bbox_92}&SRSNAME=EPSG:2180"
+                                print(query)
+                                response = requests.get(query)
+                                if response.status_code == 200:
+                                    # zapis gmla - jeśli jest w 1992 to ok
+                                    with open(f"{lokalizacja}.gml", 'wb') as f:
+                                        f.write(response.content)
+                                    print('ok')
+                                else:
+                                    # zapis zapytania url, czasu i bboxa które zwróciły błąd
+                                    with open(f"wfs_braki.csv", "a",encoding = 'utf-8') as f:
+                                        linia_bledu = csv.writer(f, delimiter=',')
+                                        linia_bledu.writerow([query,datetime.datetime.now(),bbox,])
                             for gml_Polygon in gml_Polygons:
                                 # TODO: musimy też jakoś złapać teryt dla danego <gml:Polygona>
                                 # ewns_geometria = gml_Polygon.parent
@@ -353,19 +371,19 @@ class ParcelGrabber():
     def uldk_json_to_csv_geom(self):
         with open('uldk.json') as f:
             uldk_json = json.load(f)
-            for lokalizacja, ter_geoms in uldk_json.items():
-                teryt_geom_list=[]
-                with open(f"uldk_{lokalizacja}_teryt_geom.csv", 'w') as f:
-                    teryt_geom_csv = csv.writer(f)
+            with open('uldk_teryt_geom.csv', 'w') as all:
+                teryt_geom_all = csv.writer(all)
+                for lokalizacja, ter_geoms in uldk_json.items():
                     for teryt, geom in ter_geoms.items():
-                        teryt_geom_csv.writerow([teryt, geom])
+                        teryt_geom_all.writerow([lokalizacja, teryt, geom])
+       
     
     
 
 
-pg = ParcelGrabber('robocze/radko.csv')
+pg = ParcelGrabber('robocze/all_lok_teryt.csv')
 # pg.geom_from_uldk()
 # pg.bbox_92()
 # pg.wfs_params()
-pg.wfs_from_bbox()
-# pg.uldk_json_to_csv_geom()
+# pg.wfs_from_bbox()
+pg.uldk_json_to_csv_geom()
