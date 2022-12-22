@@ -377,13 +377,25 @@ class ParcelGrabber():
                     for teryt, geom in ter_geoms.items():
                         teryt_geom_all.writerow([lokalizacja, teryt, geom])
        
-    
-    
+    ##############################################################################
+    # teryt & geometria z ULDK do postgis 
+    ###############################################################################
 
-
+    def uldk_json_to_postgis(self):
+        with open('uldk.json') as f:
+            uldk_json = json.load(f)
+            for lokalizacja, ter_geoms in uldk_json.items():
+                print(f"Dla {lokalizacja}: ")
+                for teryt, geom in ter_geoms.items():
+                    sql = f"INSERT INTO uldk VALUES ('{lokalizacja}','{teryt}','{geom}')"
+                    self.postgis.execute(sql)
+                    print(sql)
+                    
+                     
 pg = ParcelGrabber('robocze/all_lok_teryt.csv')
 # pg.geom_from_uldk()
 # pg.bbox_92()
 # pg.wfs_params()
 # pg.wfs_from_bbox()
-pg.uldk_json_to_csv_geom()
+# pg.uldk_json_to_csv_geom()
+pg.uldk_json_to_postgis()
