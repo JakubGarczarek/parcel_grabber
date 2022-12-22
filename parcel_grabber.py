@@ -391,11 +391,29 @@ class ParcelGrabber():
                     self.postgis.execute(sql)
                     print(sql)
                     
-                     
+    ##############################################################################
+    # stworzenie mini-bboxów do testów 
+    ###############################################################################
+    def mini_bbox_92(self, rozmar_metry):
+        lok_mini_bbox = {}
+        with open('bbox_92.json') as f:
+            bbox_json = json.load(f)
+            for lokalizacja, bbox in bbox_json.items():
+                x_min = bbox.split(',')[0]
+                y_min = bbox.split(',')[1]
+                x_max = float(x_min) + float(rozmar_metry)
+                y_max = float(y_min) + float(rozmar_metry)
+                mini_bbox = f"{x_min},{y_min},{x_max},{y_max}"
+                lok_mini_bbox[lokalizacja] = mini_bbox
+        with open('mini_bbox_92.json', 'w') as f:
+            json.dump(lok_mini_bbox, f, indent=1)
+
+
 pg = ParcelGrabber('robocze/all_lok_teryt.csv')
 # pg.geom_from_uldk()
 # pg.bbox_92()
 # pg.wfs_params()
 # pg.wfs_from_bbox()
 # pg.uldk_json_to_csv_geom()
-pg.uldk_json_to_postgis()
+# pg.uldk_json_to_postgis()
+pg.mini_bbox_92(100)
