@@ -38,7 +38,7 @@ class ParcelGrabber():
             db = connection_json['db']
         # automatyczne podłączenie bazy z configa
         self.postgis = create_engine(f"postgresql://{user}:{password}@{ip}:{port}/{db}")
-        print(self.lok_teryts)
+    
 
     ###################################################
     # CSV (lista TERYTÓW) => JSON {"TERYT":"GEOM_WKT"}
@@ -89,73 +89,77 @@ class ParcelGrabber():
             # usunięcie terytu z przyporządkowanymi geometriami
             # pod kolejną iterację lokalizacji
             teryt_geom = {}
-        
-    ####################################
-    # JSON {"TERYT":"GEOM_WKT"} => BBOX
-    ####################################
 
-    def bbox_92(self):
-        # utworzenie pustej listy porównawczej, 
-        # do której później wpadać będą pary kompletów (listy) współrzędnych
-        compare_list = []
-        # pusty narazie słownik
-        # potem dostanie lokalizację z bboxem
-        lokalizacja_bbox = {}
-        # otworzenie jsona {"LOKALIZACJA":{"TERYT":"GEOM_WKT"}}
+
+    ##############################################################################
+    # teryt & geometria z ULDK do postgis 
+    ###############################################################################
+
+    def uldk_json_to_postgis(self):
         with open('uldk.json') as f:
-            j = json.load(f)
-            # iteracja przez wszystkie pary {"TERYT":"GEOM_WKT"} z jsona
-            for lokalizacja, teryts_geoms in j.items():
-                for geom in teryts_geoms.values():          
-                    # wyodrębnienie samych liczb (współrzędnych) z geom (do listy)
-                    xy_list = re.findall("\d+\.\d+",geom)
-                    # lista samych x-ów (co 2 element od 0)
-                    x_list = xy_list[0::2]
-                    # lista samych y-ków (co 2 element od 1)
-                    y_list = xy_list[1::2]
-                    # dodanie ich extremów do utworzonej wcześniej listy porównawczej
-                    compare_list.append( [min(x_list), min(y_list), max(x_list), max(y_list)] )
-                    # Jeżeli w tej liście znajduje się aktualnie
-                    # komplet (para) list współrzędnych do porównania
-                    # tworzymy z nich jedną listę z ekstremami 
-                    if len(compare_list) == 2:
-                        # pobranie kompletów ekstremów do zmiennych a i b
-                        # a oraz b to listy o strukturze [min x, min y, max x, max y]
-                        a = compare_list[0]
-                        b = compare_list[1]
-                        # najmniejszy x min (pomiędzy a i b)
-                        ab_min_x = min(a[0], b[0])
-                        # najmniejszy y min (pomiędzy a i b)
-                        ab_min_y = min(a[1], b[1])
-                        # największy x max (pomiędzy a i b)
-                        ab_max_x = max(a[2], b[2])
-                        # największy y max (pomiędzy a i b)
-                        ab_max_y = max(a[3], b[3])
-                        # zastąpienie a i b w compare_list 
-                        # na jedną listę zawierającą ekstrema 
-                        # z porównania a i b
-                        compare_list = [[ab_min_x, ab_min_y, ab_max_x, ab_max_y]]
-                        
-                    # jeśli compare_list zawiera tylko 1 element pomijamy redukcję a i b 
-                    # (bo jest tylko nowe a) i wracamy do początku pętli w celu dodania 
-                    # kolejnego b    
-                # finalnie compare_list zawiera jedną zwycięzką listę [0]
-                # z której wyciągniemy wsp bboxa
-                x_min = compare_list[0][0]
-                y_min = compare_list[0][1]
-                x_max = compare_list[0][2]
-                y_max = compare_list[0][3]
-                # usługa wfs potrzebuje stringa z odwróconymi wspołrzędnymi
-                # oddzielonymi przecinkami
-                bbox = f"{y_min},{x_min},{y_max},{x_max}"
-                # słownik z bboxem przypisanym do lokalizacji
-                lokalizacja_bbox[lokalizacja]=bbox
-                # i jego zapis w jsonie
-        with open ('bbox_92.json', 'a', encoding='utf-8') as f:
-            json.dump(lokalizacja_bbox,f, indent=1)
-        
+            uldk_json = json.load(f)
+            for lokalizacja, ter_geoms in uldk_json.items():
+                for teryt, geom_92 in ter_geoms.items():
+                    with open('wfs_params.json') as w:
+                        wfs_params_json=json.load(w)
+                        for lokaliz, wfs_params in wfs_params_json.items():
+                            if lokaliz == lokalizacja:
+                                nr_ukladu = wfs_params['srsname'][-4:]
+                    geometrie_lokalne = self.postgis.execute(f"SELECT ST_AsText(ST_Transform(ST_GeomFromText('{geom_92}',2180),{nr_ukladu}))")
+                    for geom_loc in geometrie_lokalne:
+                        sql = f"INSERT INTO uldk VALUES ('{lokalizacja}','{teryt}','{geom_92}','{geom_loc[0]}')"
+                    self.postgis.execute(sql)
+                    print(sql)     
 
-  
+                
+   #################################################################################################
+   # pozyskanie bboxa z tabeli postgis przy użyciu ST_Extend i zapis do jsona dla każdej lokalizacji 
+   #################################################################################################
+    
+    def bbox_from_postgis(self):
+        lokalizacja_bbox_92 = {}
+        lokalizacja_bbox_loc = {}
+        with open('uldk.json') as f:
+            uldk_json = json.load(f)
+            for lokalizacja in uldk_json.keys():
+
+                sql_92 = f"SELECT ST_Extent(geom_92) as bextent FROM uldk WHERE lokalizacja='{lokalizacja}'"
+                print(sql_92)
+                result=self.postgis.execute(sql_92)
+                for i in result:
+                    if i[0]!= None:
+                        extracted_digits_from_bbox =  re.findall("\d+\.\d+",i[0])
+                        print(extracted_digits_from_bbox)
+                        x_min = extracted_digits_from_bbox[0]
+                        y_min = extracted_digits_from_bbox[1]
+                        x_max = extracted_digits_from_bbox[2]
+                        y_max = extracted_digits_from_bbox[3]
+                        bbox_from_postgis = f"{y_min},{x_min},{y_max},{x_max}"
+                        print(bbox_from_postgis)
+                        lokalizacja_bbox_92[lokalizacja] = bbox_from_postgis
+
+                sql_loc = f"SELECT ST_Extent(geom_loc) as bextent FROM uldk WHERE lokalizacja='{lokalizacja}'"
+                print(sql_loc)
+                result=self.postgis.execute(sql_loc)
+                for i in result:
+                    if i[0]!= None:
+                        extracted_digits_from_bbox =  re.findall("\d+\.\d+",i[0])
+                        print(extracted_digits_from_bbox)
+                        x_min = extracted_digits_from_bbox[0]
+                        y_min = extracted_digits_from_bbox[1]
+                        x_max = extracted_digits_from_bbox[2]
+                        y_max = extracted_digits_from_bbox[3]
+                        bbox_from_postgis = f"{y_min},{x_min},{y_max},{x_max}"
+                        print(bbox_from_postgis)
+                        lokalizacja_bbox_loc[lokalizacja] = bbox_from_postgis
+                        
+                                             
+        with open('bbox_92.json','w') as f:
+            json.dump(lokalizacja_bbox_92,f,indent=1)
+        with open('bbox_loc.json','w') as f:
+            json.dump(lokalizacja_bbox_loc,f,indent=1)
+        
+    
     ###########################################
     # CSV + ORGANY.JSON => URL, TYPENAME, EPSG
     ###########################################
@@ -202,167 +206,176 @@ class ParcelGrabber():
         # return [wfs_url, wfs_typename, wfs_srsname]
 
 
-     ###############################################
-     #              GML z usługi WFS
-     ###############################################   
+     #######################################################################
+     # WFS (GML) z podanego bboxa dla danej lub wszystkich  lokalizacji z []
+     #######################################################################  
 
-    def wfs_from_bbox(self):
+    def wfs_from_bbox(self, location=[]):
         with open('wfs_params.json') as f:
             wfs_params_json = json.load(f)
             for lokalizacja, wfs_params in wfs_params_json.items():
-                # właściwy url dla powiatu
-                url = wfs_params['url']
-                # nazwa w-wy z działkami w danym powiecie
-                typename = wfs_params['typename']
-                # w jakim układzie powiat wystawia usługę
-                srsname = wfs_params['srsname']
-                # pobranie wersji wfs:
-                query_cap = f"{url}?SERVICE=WFS&REQUEST=GetCapabilities"
-                print(query_cap)
-                response = requests.get(query_cap)
-                if response.status_code == 200:
-                    # zapis xmla z capabilities
-                    capabilities = response.content
-                    print('ok')
-                    print(capabilities)
-                    cap_soup = BeautifulSoup(capabilities,'xml')
-                    wfs_version = cap_soup.find('ows:ServiceTypeVersion').text
-                    print(wfs_version)
-                else:
-                    # zapis zapytania url, czasu i bboxa które zwróciły błąd
-                    print('lipa')
-                # pobranie bboxa z ULDK w 1992
-                with open ('bbox_92.json') as f:
-                    bbox = json.load(f)[lokalizacja]
-                # jeżeli w innym niż 1992
-                if srsname != 'EPSG:2180':
-                    print(f"układ {srsname} !")
-                    # wyciągnięcie samych xy bboxa bez przecinków
-                    bboxy= re.findall("\d+\.\d+", bbox)
-                    # skomponowanie z nich poligonu do transformacji
-                    x1, y1, x2, y2 = bboxy[0], bboxy[1], bboxy[2], bboxy[3]
-                    # wcześniejsza wersja alternatywna - transformacja poligonu (prostokąta)
-                    # powstałego ze współrzędnych bboxa, a nie pojedynczych punktów:
-                    # przerobienie 4 wsp bboxa na 
-                    # geometrię poligonu, żeby funkcja
-                    # ST_Transform mogła ją przyjąć
-                    # bbox_poly_92 = f"POLYGON(({x1} {y1}, {x1} {y2}, {x2} {y2}, {x2} {y1}, {x1} {y1}))"
-                    # a to wersja z punktami bboxa zamiast polgifonu (prostokąta)
-                    point_min = f"POINT({bboxy[1]} {bboxy[0]})"
-                    point_max = f"POINT({bboxy[3]} {bboxy[2]})"
-                    # transformacja do układu lokalnego
-                    # dla wersji z poligonem
-                    # bbox_geom_transf = self.postgis.execute(f"SELECT ST_AsText(ST_Transform(ST_GeomFromText('{bbox_poly_92}',2180),2176))")
-                    # dla wersji z punktami
-                    nr_ukladu = srsname[-4:]
-                    point_min_transform = self.postgis.execute(f"SELECT ST_AsText(ST_Transform(ST_GeomFromText('{point_min}',2180),{nr_ukladu}))")
-                    point_max_transform = self.postgis.execute(f"SELECT ST_AsText(ST_Transform(ST_GeomFromText('{point_max}',2180),{nr_ukladu}))")
-                    # do tej listy wrzucimy 2 punkty bboxa
-                    # po transformacji (do ukł lokalnego)
-                    pkt_transformed = []
-                    for pkt in point_min_transform:
-                        min_xy_only = re.findall("\d+\.\d+", pkt[0])
-                        for xy in min_xy_only:
-                            pkt_transformed.append(xy)
-                    for pkt in point_max_transform:
-                        max_xy_only = re.findall("\d+\.\d+", pkt[0])
-                        for xy in max_xy_only:
-                            pkt_transformed.append(xy)
-                    x1, y1, x2 ,y2 = pkt_transformed[0], pkt_transformed[1], pkt_transformed[2], pkt_transformed[3]
-                    # bbox w układzie lokalnym
-                    bbox = f"{x1}, {y1}, {x2}, {y2}"
-                    print(bbox)
-                    # dla wersji z poligonem(porstokątem)
-                    # powrót do formy bboxa(zamiast geometrii)
-                #     for geom in bbox_geom_transf:
-                #         # wyciągnięcie samych liczb z geometri
-                #         print(geom)
-                #         geomxy = re.findall("\d+\.\d+",geom[0])
-                #         coords = []
-                #         for coord in geomxy:
-                #             coords.append(coord)
-                #         bbox=f"{coords[1]},{coords[0]},{coords[3]},{coords[4]}"
-                    # zapytanie z bboxem w układzie lokalnym
-                    query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version={wfs_version}&TYPENAMES={typename}&bbox={bbox}&SRSNAME={srsname}"
-                    print(query)
-                    response = requests.get(query)
-                    if response.status_code == 200:       
-                        with open(f"{lokalizacja}.gml", 'wb') as f:
-                            f.write(response.content)
-                        print(response.content)
-                        # otwarcie zapisanego przed chwilą gmla
-                        with open(f"{lokalizacja}.gml") as f:
-                            # gml jest w ukł lokalnym i ma odwórcone osie
-                            # osie odwracamy funkcją postgisa ST_Affine
-                            # ale nie można do niej wrzucić całego gmla
-                            # tylko pojedyncze znaczniki zawierające gml:Polygon
-                            soup = BeautifulSoup(f,'xml')
-                            # wyciągamy z gmla zawartość tagów <gml:Polygon>
-                            gml_Polygons = soup.findAll('gml:Polygon')
-                            # pomimo iż usługa w układzie lokalnym
-                            # zapytanie może być wymagane nadal w 1992
-                            # wtedy zwrócony gml będzie pusty, więc poniżej
-                            # sprawdzenie czy pusty i zapytanie w 1992
-                            if not gml_Polygons:
-                                with open ('bbox_92.json') as f:
-                                    bbox_92 = json.load(f)[lokalizacja]
-                                query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version={wfs_version}&TYPENAMES={typename}&bbox={bbox_92}&SRSNAME=EPSG:2180"
-                                print(query)
+                if lokalizacja in location or location==[]:
+                    # właściwy url dla powiatu
+                    url = wfs_params['url']
+                    # nazwa w-wy z działkami w danym powiecie
+                    typename = wfs_params['typename']
+                    # w jakim układzie powiat wystawia usługę
+                    srsname = wfs_params['srsname']
+                    # pobranie wersji wfs:
+                    query_cap = f"{url}?SERVICE=WFS&REQUEST=GetCapabilities"
+                    print(query_cap)
+                    try:
+                        response = requests.get(query_cap)
+                        if response.status_code == 200:
+                            # zapis xmla z capabilities
+                            capabilities = response.content
+                            print('ok')
+                            print(capabilities)
+                            cap_soup = BeautifulSoup(capabilities,'xml')
+                            wfs_version = cap_soup.find('ows:ServiceTypeVersion').text
+                            print(wfs_version)
+                        else:
+                            # zapis zapytania url, czasu i bboxa które zwróciły błąd
+                            print('lipa')
+                        # pobranie bboxa z ULDK w 1992
+                        with open ('bbox_92.json') as f:
+                            bbox = json.load(f)[lokalizacja]
+                        # jeżeli w innym niż 1992
+                        if srsname != 'EPSG:2180':
+                            print(f"układ {srsname} !")
+                            # wyciągnięcie samych xy bboxa bez przecinków
+                            bboxy= re.findall("\d+\.\d+", bbox)
+                            # skomponowanie z nich poligonu do transformacji
+                            x1, y1, x2, y2 = bboxy[0], bboxy[1], bboxy[2], bboxy[3]
+                            # wcześniejsza wersja alternatywna - transformacja poligonu (prostokąta)
+                            # powstałego ze współrzędnych bboxa, a nie pojedynczych punktów:
+                            # przerobienie 4 wsp bboxa na 
+                            # geometrię poligonu, żeby funkcja
+                            # ST_Transform mogła ją przyjąć
+                            # bbox_poly_92 = f"POLYGON(({x1} {y1}, {x1} {y2}, {x2} {y2}, {x2} {y1}, {x1} {y1}))"
+                            # a to wersja z punktami bboxa zamiast polgifonu (prostokąta)
+                            point_min = f"POINT({bboxy[1]} {bboxy[0]})"
+                            point_max = f"POINT({bboxy[3]} {bboxy[2]})"
+                            # transformacja do układu lokalnego
+                            # dla wersji z poligonem
+                            # bbox_geom_transf = self.postgis.execute(f"SELECT ST_AsText(ST_Transform(ST_GeomFromText('{bbox_poly_92}',2180),2176))")
+                            # dla wersji z punktami
+                            nr_ukladu = srsname[-4:]
+                            point_min_transform = self.postgis.execute(f"SELECT ST_AsText(ST_Transform(ST_GeomFromText('{point_min}',2180),{nr_ukladu}))")
+                            point_max_transform = self.postgis.execute(f"SELECT ST_AsText(ST_Transform(ST_GeomFromText('{point_max}',2180),{nr_ukladu}))")
+                            # do tej listy wrzucimy 2 punkty bboxa
+                            # po transformacji (do ukł lokalnego)
+                            pkt_transformed = []
+                            for pkt in point_min_transform:
+                                min_xy_only = re.findall("\d+\.\d+", pkt[0])
+                                for xy in min_xy_only:
+                                    pkt_transformed.append(xy)
+                            for pkt in point_max_transform:
+                                max_xy_only = re.findall("\d+\.\d+", pkt[0])
+                                for xy in max_xy_only:
+                                    pkt_transformed.append(xy)
+                            x1, y1, x2 ,y2 = pkt_transformed[0], pkt_transformed[1], pkt_transformed[2], pkt_transformed[3]
+                            # bbox w układzie lokalnym
+                            bbox = f"{x1}, {y1}, {x2}, {y2}"
+                            print(bbox)
+                            # dla wersji z poligonem(porstokątem)
+                            # powrót do formy bboxa(zamiast geometrii)
+                        #     for geom in bbox_geom_transf:
+                        #         # wyciągnięcie samych liczb z geometri
+                        #         print(geom)
+                        #         geomxy = re.findall("\d+\.\d+",geom[0])
+                        #         coords = []
+                        #         for coord in geomxy:
+                        #             coords.append(coord)
+                        #         bbox=f"{coords[1]},{coords[0]},{coords[3]},{coords[4]}"
+                            # zapytanie z bboxem w układzie lokalnym
+                            query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version={wfs_version}&TYPENAMES={typename}&bbox={bbox}&SRSNAME={srsname}"
+                            print(query)
+                            response = requests.get(query)
+                            if response.status_code == 200:       
+                                with open(f"{lokalizacja}.gml", 'wb') as f:
+                                    f.write(response.content)
+                                print(response.content)
+                                # otwarcie zapisanego przed chwilą gmla
+                                with open(f"{lokalizacja}.gml") as f:
+                                    # gml jest w ukł lokalnym i ma odwórcone osie
+                                    # osie odwracamy funkcją postgisa ST_Affine
+                                    # ale nie można do niej wrzucić całego gmla
+                                    # tylko pojedyncze znaczniki zawierające gml:Polygon
+                                    soup = BeautifulSoup(f,'xml')
+                                    # wyciągamy z gmla zawartość tagów <gml:Polygon>
+                                    gml_Polygons = soup.findAll('gml:Polygon')
+                                    # pomimo iż usługa w układzie lokalnym
+                                    # zapytanie może być wymagane nadal w 1992
+                                    # wtedy zwrócony gml będzie pusty, więc poniżej
+                                    # sprawdzenie czy pusty i zapytanie w 1992
+                                    if not gml_Polygons:
+                                        with open ('bbox_92.json') as f:
+                                            bbox_92 = json.load(f)[lokalizacja]
+                                        query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version={wfs_version}&TYPENAMES={typename}&bbox={bbox_92}&SRSNAME=EPSG:2180"
+                                        print(query)
+                                        response = requests.get(query)
+                                        if response.status_code == 200:
+                                            # zapis gmla - jeśli jest w 1992 to ok
+                                            with open(f"{lokalizacja}.gml", 'wb') as f:
+                                                f.write(response.content)
+                                            print('ok')
+                                        else:
+                                            # zapis zapytania url, czasu i bboxa które zwróciły błąd
+                                            with open(f"wfs_braki.csv", "a",encoding = 'utf-8') as f:
+                                                linia_bledu = csv.writer(f, delimiter=',')
+                                                linia_bledu.writerow([query,datetime.datetime.now(),bbox,])
+                                    for gml_Polygon in gml_Polygons:
+                                        # TODO: musimy też jakoś złapać teryt dla danego <gml:Polygona>
+                                        # ewns_geometria = gml_Polygon.parent
+                                        # ewns_ID_DZIALKI = ewns_geometria.find_previous_sibling('ewns:ID_DZIALKI')
+                                        # teryt = ewns_ID_DZIALKI.text
+                                        
+                                        # Zawartość danego <gml:Polygon> do WKB (ST_GeomFromGML)
+                                        # WKB na WKT (ST_AsText)
+                                        # Transformacja afiniczna ST_Affine (da się tylko z WKT)
+                                        # WKB (powst. z afinicznej) na WKT (ST_AsText)
+                                        sql =f"SELECT ST_AsText(ST_Affine(ST_AsText(ST_GeomFromGML('{gml_Polygon}')),0, 1, 1, 0, 0, 0))"
+                                        print(sql)
+                                        gml_geom = self.postgis.execute(sql)
+                                        for g in gml_geom:
+                                            # zapis geometrii lokalnych  
+                                            # wyciągniętych z GMLA
+                                            # (trzeba je jeszcze przetransformować do 1992)
+                                            with open(f"{lokalizacja}_WFS.csv", 'a') as f:
+                                                f.write(f"{g[0]}\n")
+                                        print('ok')
+                            else:
+                                # zapis zapytania url, czasu i bboxa które zwróciły błąd
+                                with open(f"wfs_braki.csv", "a",encoding = 'utf-8') as f:
+                                    linia_bledu = csv.writer(f, delimiter=',')
+                                    linia_bledu.writerow([query,datetime.datetime.now(),bbox,])
+                                print('lipa')
+                    
+                        # jeżeli nie trzeba było robić transformacji
+                        # (dla powiatów z układem 1992)
+                        # zapis gml bez odwrócenia osi i ponownej transformacji z lokalnego do 1992
+                        else:
+                            query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version={wfs_version}&TYPENAMES={typename}&bbox={bbox}&SRSNAME={srsname}"
+                            print(query)
+                            try:
                                 response = requests.get(query)
-                                if response.status_code == 200:
-                                    # zapis gmla - jeśli jest w 1992 to ok
-                                    with open(f"{lokalizacja}.gml", 'wb') as f:
-                                        f.write(response.content)
-                                    print('ok')
-                                else:
-                                    # zapis zapytania url, czasu i bboxa które zwróciły błąd
-                                    with open(f"wfs_braki.csv", "a",encoding = 'utf-8') as f:
-                                        linia_bledu = csv.writer(f, delimiter=',')
-                                        linia_bledu.writerow([query,datetime.datetime.now(),bbox,])
-                            for gml_Polygon in gml_Polygons:
-                                # TODO: musimy też jakoś złapać teryt dla danego <gml:Polygona>
-                                # ewns_geometria = gml_Polygon.parent
-                                # ewns_ID_DZIALKI = ewns_geometria.find_previous_sibling('ewns:ID_DZIALKI')
-                                # teryt = ewns_ID_DZIALKI.text
-                                
-                                # Zawartość danego <gml:Polygon> do WKB (ST_GeomFromGML)
-                                # WKB na WKT (ST_AsText)
-                                # Transformacja afiniczna ST_Affine (da się tylko z WKT)
-                                # WKB (powst. z afinicznej) na WKT (ST_AsText)
-                                sql =f"SELECT ST_AsText(ST_Affine(ST_AsText(ST_GeomFromGML('{gml_Polygon}')),0, 1, 1, 0, 0, 0))"
-                                print(sql)
-                                gml_geom = self.postgis.execute(sql)
-                                for g in gml_geom:
-                                    # zapis geometrii lokalnych  
-                                    # wyciągniętych z GMLA
-                                    # (trzeba je jeszcze przetransformować do 1992)
-                                    with open(f"{lokalizacja}_WFS.csv", 'a') as f:
-                                        f.write(f"{g[0]}\n")
+                            except ConnectionError as e:
+                                print(e.message)
+                                pass
+                            if response.status_code == 200:
+                                # zapis gmla - jeśli jest w 1992 to ok
+                                with open(f"{lokalizacja}.gml", 'wb') as f:
+                                    f.write(response.content)
                                 print('ok')
-                    else:
-                        # zapis zapytania url, czasu i bboxa które zwróciły błąd
-                        with open(f"wfs_braki.csv", "a",encoding = 'utf-8') as f:
-                            linia_bledu = csv.writer(f, delimiter=',')
-                            linia_bledu.writerow([query,datetime.datetime.now(),bbox,])
-                        print('lipa')
-            
-                # jeżeli nie trzeba było robić transformacji
-                # (dla powiatów z układem 1992)
-                # zapis gml bez odwrócenia osi i ponownej transformacji z lokalnego do 1992
-                else:
-                    query = f"{url}?SERVICE=WFS&REQUEST=GetFeature&version={wfs_version}&TYPENAMES={typename}&bbox={bbox}&SRSNAME={srsname}"
-                    print(query)
-                    response = requests.get(query)
-                    if response.status_code == 200:
-                        # zapis gmla - jeśli jest w 1992 to ok
-                        with open(f"{lokalizacja}.gml", 'wb') as f:
-                            f.write(response.content)
-                        print('ok')
-                    else:
-                        # zapis zapytania url, czasu i bboxa które zwróciły błąd
-                        with open(f"wfs_braki.csv", "a",encoding = 'utf-8') as f:
-                            linia_bledu = csv.writer(f, delimiter=',')
-                            linia_bledu.writerow([query,datetime.datetime.now(),bbox,])
+                            else:
+                                # zapis zapytania url, czasu i bboxa które zwróciły błąd
+                                with open(f"wfs_braki.csv", "a",encoding = 'utf-8') as f:
+                                    linia_bledu = csv.writer(f, delimiter=',')
+                                    linia_bledu.writerow([query,datetime.datetime.now(),bbox,])
+                    except:
+                        print('==========================PASS=================================')
+                        pass        
         
     ##############################################################################
     # wyciągnięcie z jsona geometrii do csv (gdy trzeba wizualizować np. w QGIS) 
@@ -377,19 +390,7 @@ class ParcelGrabber():
                     for teryt, geom in ter_geoms.items():
                         teryt_geom_all.writerow([lokalizacja, teryt, geom])
        
-    ##############################################################################
-    # teryt & geometria z ULDK do postgis 
-    ###############################################################################
 
-    def uldk_json_to_postgis(self):
-        with open('uldk.json') as f:
-            uldk_json = json.load(f)
-            for lokalizacja, ter_geoms in uldk_json.items():
-                print(f"Dla {lokalizacja}: ")
-                for teryt, geom in ter_geoms.items():
-                    sql = f"INSERT INTO uldk VALUES ('{lokalizacja}','{teryt}','{geom}')"
-                    self.postgis.execute(sql)
-                    print(sql)
                     
     ##############################################################################
     # stworzenie mini-bboxów do testów 
@@ -409,11 +410,13 @@ class ParcelGrabber():
             json.dump(lok_mini_bbox, f, indent=1)
 
 
+
 pg = ParcelGrabber('robocze/all_lok_teryt.csv')
 # pg.geom_from_uldk()
 # pg.bbox_92()
 # pg.wfs_params()
-# pg.wfs_from_bbox()
+# pg.wfs_from_bbox(['Dubie'])
 # pg.uldk_json_to_csv_geom()
 # pg.uldk_json_to_postgis()
-pg.mini_bbox_92(100)
+# pg.mini_bbox_92(100)
+pg.bbox_from_postgis()
