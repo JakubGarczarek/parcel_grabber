@@ -1,0 +1,326 @@
+{
+ "\u017bera\u0144": {
+  "url": "https://wms2.um.warszawa.pl/geoserver/wfs/wms",
+  "typename": "wfs:dzialki_free",
+  "srsname": "EPSG:2178",
+  "teryt": "1465"
+ },
+ "Bielsko Bia\u0142a": {
+  "url": "https://ikerg.bielsko-biala.pl/bielsko-egib",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "2461"
+ },
+ "Kopciowice": {
+  "url": "https://sbl.webewid.pl:8443/us/wfs/sip",
+  "typename": "egib:EGB_DzialkaEwidencyjna",
+  "srsname": "EPSG:2177",
+  "teryt": "2414"
+ },
+ "Chojna": {
+  "url": "https://gryfinski.webewid.pl:4439/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2176",
+  "teryt": "3206"
+ },
+ "Czernich\u00f3w": {
+  "url": "https://wms.powiat.krakow.pl:1518/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1206"
+ },
+ "D\u0119bina": {
+  "url": "https://webewid.powiat.tarnow.pl:20443/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1216"
+ },
+ "Wierzbica": {
+  "url": "https://radom.geoportal2.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1425"
+ },
+ "Wejherowo": {
+  "url": "https://wms.epodgik.pl/cgi-bin/wejherowo",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "2215"
+ },
+ "Tczew": {
+  "url": "https://wms.powiat.tczew.pl/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "2214"
+ },
+ "Golczewo": {
+  "url": "https://ikerg.powiatkamienski.pl/kamien",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "3207"
+ },
+ "Sok\u00f3\u0142ka": {
+  "url": "https://powiatsokolski.geoportal2.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2179",
+  "teryt": "2011"
+ },
+ "Skibno": {
+  "url": "https://koszalinski-wms.webewid.pl/iip/ows",
+  "typename": "dzialki",
+  "srsname": "EPSG:2176",
+  "teryt": "3209"
+ },
+ "S\u0119p\u00f3lno": {
+  "url": "https://szczecinecki-wms.webewid.pl/iip/ows",
+  "typename": "dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "3215"
+ },
+ "S\u0119p\u00f3lno - lisia Jama": {
+  "url": "https://szczecinecki-wms.webewid.pl/iip/ows",
+  "typename": "dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "3215"
+ },
+ "Dubie": {
+  "url": "https://wms.powiat.krakow.pl:1518/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1206"
+ },
+ "Dziewki": {
+  "url": "https://ikerg.powiat.bedzin.pl/bedzin-egib",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "2401"
+ },
+ "Dziewki ": {
+  "url": "https://ikerg.powiat.bedzin.pl/bedzin-egib",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "2401"
+ },
+ "Gryfice": {
+  "url": "https://ikerg.podgikgryfice.pl/gryfice-egib",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "3205"
+ },
+ "Warszawa Thomas": {
+  "url": "https://wms2.um.warszawa.pl/geoserver/wfs/wms",
+  "typename": "wfs:dzialki_free",
+  "srsname": "EPSG:2178",
+  "teryt": "1465"
+ },
+ "Karolin": {
+  "url": "https://portal.geopoz.poznan.pl/wmsegib",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "3064"
+ },
+ "Klikuszowa": {
+  "url": "https://nowotarski.geoportal2.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1211"
+ },
+ "Ostrowite": {
+  "url": "https://bytowski.webewid.pl:4433/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "2201"
+ },
+ "Odolany": {
+  "url": "https://wms2.um.warszawa.pl/geoserver/wfs/wms",
+  "typename": "wfs:dzialki_free",
+  "srsname": "EPSG:2178",
+  "teryt": "1465"
+ },
+ "Mory\u0144": {
+  "url": "https://gryfinski.webewid.pl:4439/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2176",
+  "teryt": "3206"
+ },
+ "Krak\u00f3w Bociana": {
+  "url": "https://msip.um.krakow.pl/arcgis/services/ZSOZ/EGIB_udostepnianie/MapServer/WFSServer",
+  "typename": "EGIB_udostepnianie:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "1261"
+ },
+ "Krak\u00f3w Fredry": {
+  "url": "https://msip.um.krakow.pl/arcgis/services/ZSOZ/EGIB_udostepnianie/MapServer/WFSServer",
+  "typename": "EGIB_udostepnianie:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "1261"
+ },
+ "Lubie\u0144": {
+  "url": "https://legnicki-wms.webewid.pl/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2176",
+  "teryt": "0209"
+ },
+ "Ma\u0142ogoszcz": {
+  "url": "https://jedrzejow.geoportal2.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "2602"
+ },
+ "Kowale-Energetyczna": {
+  "url": "https://gdanski-wms.webewid.pl/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "2204"
+ },
+ "Mielec": {
+  "url": "https://mielec.geoportal2.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1811"
+ },
+ "Nowa Huta": {
+  "url": "https://msip.um.krakow.pl/arcgis/services/ZSOZ/EGIB_udostepnianie/MapServer/WFSServer",
+  "typename": "EGIB_udostepnianie:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "1261"
+ },
+ "Por\u0105bka": {
+  "url": "https://limanowski-wms.webewid.pl/iip/ows",
+  "typename": "dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1207"
+ },
+ "Pozna\u0144": {
+  "url": "https://portal.geopoz.poznan.pl/wmsegib",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "3064"
+ },
+ "Rabowice": {
+  "url": "https://ikerg.podgik.poznan.pl/wms-poznanski",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "3021"
+ },
+ "Radkowice": {
+  "url": "https://geoportal.powiat.kielce.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "2604"
+ },
+ "Jastrz\u0105b": {
+  "url": "https://szydlowiecpowiat.geoportal2.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1430"
+ },
+ "G\u00f3ra Kalwaria": {
+  "url": "https://wms.epodgik.pl/cgi-bin/piaseczno",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "1418"
+ },
+ "Gli\u015bno": {
+  "url": "https://bytowski.webewid.pl:4433/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "2201"
+ },
+ "Gda\u0144sk Wschodnia": {
+  "url": "https://ewid-wms.gdansk.gda.pl/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "2261"
+ },
+ "Gda\u0144sk Wielopole": {
+  "url": "https://ewid-wms.gdansk.gda.pl/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "2261"
+ },
+ "Gda\u0144sk Sienna": {
+  "url": "https://ewid-wms.gdansk.gda.pl/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "2261"
+ },
+ "Rudawa": {
+  "url": "https://wms.powiat.krakow.pl:1518/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1206"
+ },
+ "Rzesz\u00f3w": {
+  "url": "https://osrodek.erzeszow.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1863"
+ },
+ "Szczecin Chmielewskiego": {
+  "url": "https://wms.e-osrodek.szczecin.pl/szczecin-egib",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "3262"
+ },
+ "Szczecin Tama": {
+  "url": "https://wms.e-osrodek.szczecin.pl/szczecin-egib",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "3262"
+ },
+ "\u015awi\u0119toch\u0142owice": {
+  "url": "https://swietochlowice.geoportal2.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "2476"
+ },
+ "Tychy": {
+  "url": "http://sit.umtychy.pl/isdp/gs/ows/default/wfs4",
+  "typename": "default:Dzialki",
+  "srsname": "EPSG:2177",
+  "teryt": "2477"
+ },
+ "Warszawa Siekierki MOKOT\u00d3W": {
+  "url": "https://wms2.um.warszawa.pl/geoserver/wfs/wms",
+  "typename": "wfs:dzialki_free",
+  "srsname": "EPSG:2178",
+  "teryt": "1465"
+ },
+ "Wysogotowo": {
+  "url": "https://ikerg.podgik.poznan.pl/wms-poznanski",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "3021"
+ },
+ "Warszawa Zawodzie": {
+  "url": "https://wms2.um.warszawa.pl/geoserver/wfs/wms",
+  "typename": "wfs:dzialki_free",
+  "srsname": "EPSG:2178",
+  "teryt": "1465"
+ },
+ "Che\u0142m": {
+  "url": "https://gryfinski.webewid.pl:4439/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2176",
+  "teryt": "3206"
+ },
+ "Zb\u0105szy\u0144": {
+  "url": "https://wms.powiatnowotomyski.pl/nowytomysl-egib",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2180",
+  "teryt": "3015"
+ },
+ "Ustronie Morskie": {
+  "url": "https://kolobrzeski-wms.webewid.pl/iip/ows",
+  "typename": "ms:dzialki",
+  "srsname": "EPSG:2176",
+  "teryt": "3208"
+ },
+ "Tarnawa Dolna": {
+  "url": "https://powiatsuski.geoportal2.pl/map/geoportal/wfs.php",
+  "typename": "ewns:dzialki",
+  "srsname": "EPSG:2178",
+  "teryt": "1215"
+ }
+}

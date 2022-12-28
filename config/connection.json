@@ -1,7 +1,7 @@
 {
-"user": "wpisz nazwę użytkownika",
+"user": "wpisz usera",
 "password" : "wpisz hasło",
-"ip" : "wpisz adres ip",
-"port" : "wpisz nr portu",
+"ip" : "wpisz ip",
+"port" : "wpisz port",
 "db" : "wpisz nazwę bazy"
 }

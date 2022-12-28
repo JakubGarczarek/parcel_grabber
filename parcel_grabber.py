@@ -297,7 +297,7 @@ class ParcelGrabber():
                                 obiekt_tranform_92 = self.postgis.execute(sql_transform)
                                 for geometry_transformed_92 in obiekt_tranform_92:
                                     geom_transf_92_ready = geometry_transformed_92[0]
-                                    sql_ins = f"INSERT INTO wfs VALUES ('{lokalizacja}','{id_dzialki}','{geom_transf_92_ready}')"
+                                    sql_ins = f"INSERT INTO wfs VALUES ('{lokalizacja}','{id_dzialki}','{geom_transf_92_ready}') ON CONFLICT(teryt) DO NOTHING"
                                     self.postgis.execute(sql_ins)
                      
 
@@ -474,4 +474,4 @@ pg = ParcelGrabber('robocze/all_lok_teryt.csv')
 # pg.uldk_json_to_postgis()
 # pg.mini_bbox_92(100)
 # pg.bbox_from_postgis()
-pg.get_wfs(['Małogoszcz'])
+pg.get_wfs(['Radkowice'])
